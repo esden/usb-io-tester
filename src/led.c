@@ -19,23 +19,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "system.h"
-#include "led.h"
-#include "cdcacm.h"
+#include <libopencm3/stm32/f1/rcc.h>
+#include <libopencm3/stm32/f1/gpio.h>
 
-int main(void)
+void led_init()
 {
-	int i;
+	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPCEN);
 
-	system_init();
-	led_init();
-	cdcacm_init();
+	gpio_set(GPIOC, GPIO2);
+	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_2_MHZ,
+			GPIO_CNF_OUTPUT_PUSHPULL, GPIO2);
+	gpio_set(GPIOC, GPIO5);
+	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_2_MHZ,
+			GPIO_CNF_OUTPUT_PUSHPULL, GPIO5);
+}
 
-	for (i = 0; i < 0x800000; i++)
-		__asm__("nop");
+void led1_on()
+{
+	gpio_clear(GPIOC, GPIO2);
+}
 
-	led1_on();
-
-	while (1)
-	  cdcacm_run();
+void led1_off()
+{
+	gpio_set(GPIOC, GPIO2);
 }

@@ -19,23 +19,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "system.h"
-#include "led.h"
-#include "cdcacm.h"
+#include <libopencm3/stm32/f1/rcc.h>
 
-int main(void)
+void system_init()
 {
-	int i;
-
-	system_init();
-	led_init();
-	cdcacm_init();
-
-	for (i = 0; i < 0x800000; i++)
-		__asm__("nop");
-
-	led1_on();
-
-	while (1)
-	  cdcacm_run();
+	rcc_clock_setup_in_hse_12mhz_out_72mhz();
 }

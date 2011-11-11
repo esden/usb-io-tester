@@ -19,23 +19,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "system.h"
-#include "led.h"
-#include "cdcacm.h"
+#ifndef SYSTEM_H
+#define SYSTEM_H
 
-int main(void)
-{
-	int i;
+void system_init();
 
-	system_init();
-	led_init();
-	cdcacm_init();
-
-	for (i = 0; i < 0x800000; i++)
-		__asm__("nop");
-
-	led1_on();
-
-	while (1)
-	  cdcacm_run();
-}
+#endif /* SYSTEM_H */
