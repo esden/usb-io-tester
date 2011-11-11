@@ -31,10 +31,20 @@ int main(void)
 	led_init();
 	cdcacm_init();
 
+	led1_off();
+	led2_on();
+	led3_off();
+	led4_on();
+	led5_off();
+
 	for (i = 0; i < 0x800000; i++)
 		__asm__("nop");
 
 	led1_on();
+	led2_off();
+	led3_on();
+	led4_off();
+	led5_on();
 
 	while (1)
 	  cdcacm_run();

@@ -24,22 +24,86 @@
 
 void led_init()
 {
+	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
+	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPBEN);
 	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPCEN);
+	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_AFIOEN);
 
+	/* led 1 */
+	gpio_set(GPIOA, GPIO8);
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ,
+			GPIO_CNF_OUTPUT_PUSHPULL, GPIO8);
+
+	/* led 2 formely trst */
+	gpio_set(GPIOB, GPIO4);
+	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ,
+			GPIO_CNF_OUTPUT_PUSHPULL, GPIO4);
+
+	AFIO_MAPR |= AFIO_MAPR_SWJ_CFG_FULL_SWJ_NO_JNTRST;
+
+	/* led 3 formely adc 6 */
 	gpio_set(GPIOC, GPIO2);
-	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_2_MHZ,
+	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_50_MHZ,
 			GPIO_CNF_OUTPUT_PUSHPULL, GPIO2);
+
+	/* led 4 formely adc 4 */
 	gpio_set(GPIOC, GPIO5);
-	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_2_MHZ,
+	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_50_MHZ,
 			GPIO_CNF_OUTPUT_PUSHPULL, GPIO5);
+
+	/* led 5 */
+	gpio_set(GPIOC, GPIO15);
+	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_50_MHZ,
+			GPIO_CNF_OUTPUT_PUSHPULL, GPIO15);
+
 }
 
 void led1_on()
 {
-	gpio_clear(GPIOC, GPIO2);
+	gpio_clear(GPIOA, GPIO8);
 }
 
 void led1_off()
 {
+	gpio_set(GPIOA, GPIO8);
+}
+
+void led2_on()
+{
+	gpio_clear(GPIOB, GPIO4);
+}
+
+void led2_off()
+{
+	gpio_set(GPIOB, GPIO4);
+}
+
+void led3_on()
+{
+	gpio_clear(GPIOC, GPIO2);
+}
+
+void led3_off()
+{
 	gpio_set(GPIOC, GPIO2);
+}
+
+void led4_on()
+{
+	gpio_clear(GPIOC, GPIO5);
+}
+
+void led4_off()
+{
+	gpio_set(GPIOC, GPIO5);
+}
+
+void led5_on()
+{
+	gpio_clear(GPIOC, GPIO15);
+}
+
+void led5_off()
+{
+	gpio_set(GPIOC, GPIO15);
 }

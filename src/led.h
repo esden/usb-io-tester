@@ -26,5 +26,13 @@ void led_init();
 
 void led1_on();
 void led1_off();
+void led2_on();
+void led2_off();
+void led3_on();
+void led3_off();
+void led4_on();
+void led4_off();
+void led5_on();
+void led5_off();
 
 #endif /* LED_H */
