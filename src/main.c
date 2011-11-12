@@ -62,53 +62,35 @@ void led_toggle_process(void)
 		led1_toggle_flag = 0;
 		led1_toggle();
 		cdcacm_send("led1 toggle\r\n", 13);
-		cdcacm_run();
-		cdcacm_run();
-		cdcacm_run();
-	}
+	} else
 
 	if (led2_toggle_flag == 1) {
 		led2_toggle_flag = 0;
 		led2_toggle();
 		cdcacm_send("led2 toggle\r\n", 13);
-		cdcacm_run();
-		cdcacm_run();
-		cdcacm_run();
-	}
+	} else
 
 	if (led3_toggle_flag == 1) {
 		led3_toggle_flag = 0;
 		led3_toggle();
 		cdcacm_send("led3 toggle\r\n", 13);
-		cdcacm_run();
-		cdcacm_run();
-		cdcacm_run();
-	}
+	} else
 
 	if (led4_toggle_flag == 1) {
 		led4_toggle_flag = 0;
 		led4_toggle();
 		cdcacm_send("led4 toggle\r\n", 13);
-		cdcacm_run();
-		cdcacm_run();
-		cdcacm_run();
-	}
+	} else
 
 	if (led5_toggle_flag == 1) {
 		led5_toggle_flag = 0;
 		led5_toggle();
 		cdcacm_send("led5 toggle\r\n", 13);
-		cdcacm_run();
-		cdcacm_run();
-		cdcacm_run();
-	}
+	} else
 
 	if (ret_flag == 1) {
 		ret_flag = 0;
 		cdcacm_send("\r\n", 2);
-		cdcacm_run();
-		cdcacm_run();
-		cdcacm_run();
 	}
 }
 
