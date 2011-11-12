@@ -30,29 +30,82 @@ int led4_toggle_flag = 0;
 int led5_toggle_flag = 0;
 int ret_flag = 0;
 
+enum p_state {
+  PS_IDLE,
+  PS_PRE1,
+  PS_PRE2,
+  PS_LED,
+  PS_USART_ID,
+  PS_USART_SIZE,
+  PS_USART_DATA
+};
+
+enum p_state p_state;
+
+void p_init(void)
+{
+	p_state = PS_IDLE;
+}
+
+void p_parse_byte(char ch)
+{
+	switch (p_state) {
+	case PS_IDLE:
+		if (ch == 'u') {
+			p_state = PS_PRE1;
+		}
+		break;
+	case PS_PRE1:
+		if (ch == 'i') {
+			p_state = PS_PRE2;
+		} else {
+			p_state = PS_IDLE;
+		}
+		break;
+	case PS_PRE2:
+		switch (ch) {
+		case 'l':
+			p_state = PS_LED;
+			break;
+		case 'u':
+			p_state = PS_USART_ID;
+			break;
+		}
+		break;
+	case PS_LED:
+		switch (ch) {
+		case '1':
+			led1_toggle_flag = 1;
+			break;
+		case '2':
+			led2_toggle_flag = 1;
+			break;
+		case '3':
+			led3_toggle_flag = 1;
+			break;
+		case '4':
+			led4_toggle_flag = 1;
+			break;
+		case '5':
+			led5_toggle_flag = 1;
+			break;
+		}
+		break;
+	case PS_USART_ID:
+		break;
+	case PS_USART_SIZE:
+		break;
+	case PS_USART_DATA:
+		break;
+	}
+}
+
 void cdcacm_input_callback(char *data, int size)
 {
 	int i;
 
 	for (i = 0; i < size; i++) {
-		if ( data[i] == '1' ) {
-			led1_toggle_flag = 1;
-		}
-		if ( data[i] == '2' ) {
-			led2_toggle_flag = 1;
-		}
-		if ( data[i] == '3' ) {
-			led3_toggle_flag = 1;
-		}
-		if ( data[i] == '4' ) {
-			led4_toggle_flag = 1;
-		}
-		if ( data[i] == '5' ) {
-			led5_toggle_flag = 1;
-		}
-		if ( data[i] == '\n' || data[i] == '\r' ) {
-			ret_flag = 1;
-		}
+		p_parse_byte(data[i]);
 	}
 }
 
