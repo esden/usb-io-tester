@@ -68,6 +68,11 @@ void led1_off()
 	gpio_set(GPIOA, GPIO8);
 }
 
+void led1_toggle()
+{
+	gpio_toggle(GPIOA, GPIO8);
+}
+
 void led2_on()
 {
 	gpio_clear(GPIOB, GPIO4);
@@ -76,6 +81,11 @@ void led2_on()
 void led2_off()
 {
 	gpio_set(GPIOB, GPIO4);
+}
+
+void led2_toggle()
+{
+	gpio_toggle(GPIOB, GPIO4);
 }
 
 void led3_on()
@@ -88,6 +98,11 @@ void led3_off()
 	gpio_set(GPIOC, GPIO2);
 }
 
+void led3_toggle()
+{
+	gpio_toggle(GPIOC, GPIO2);
+}
+
 void led4_on()
 {
 	gpio_clear(GPIOC, GPIO5);
@@ -98,6 +113,11 @@ void led4_off()
 	gpio_set(GPIOC, GPIO5);
 }
 
+void led4_toggle()
+{
+	gpio_toggle(GPIOC, GPIO5);
+}
+
 void led5_on()
 {
 	gpio_clear(GPIOC, GPIO15);
@@ -106,4 +126,9 @@ void led5_on()
 void led5_off()
 {
 	gpio_set(GPIOC, GPIO15);
+}
+
+void led5_toggle()
+{
+	gpio_toggle(GPIOC, GPIO15);
 }

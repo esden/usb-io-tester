@@ -22,7 +22,11 @@
 #ifndef CDCACM_H
 #define CDCACM_H
 
+typedef void (*cdcacm_receive_callback) (char *data, int size);
+
 void cdcacm_init();
 void cdcacm_run();
+void cdcacm_register_receive_callback(cdcacm_receive_callback callback);
+void cdcacm_send(char *data, int size);
 
 #endif /* CDCACM_H */

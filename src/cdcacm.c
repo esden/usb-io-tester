@@ -27,6 +27,8 @@
 
 #include "cdcacm.h"
 
+cdcacm_receive_callback _cdcacm_receive_callback = NULL;
+
 static const struct usb_device_descriptor dev = {
 	.bLength = USB_DT_DEVICE_SIZE,
 	.bDescriptorType = USB_DT_DEVICE,
@@ -206,12 +208,18 @@ static void cdcacm_data_rx_cb(u8 ep)
 
 	char buf[64];
 	int len = usbd_ep_read_packet(0x01, buf, 64);
+
+	if ( _cdcacm_receive_callback != NULL ) {
+		_cdcacm_receive_callback(buf, len);
+	}
+
 	if(len) {
-		while(usbd_ep_write_packet(0x82, buf, len) == 0);
+		//while(usbd_ep_write_packet(0x82, buf, len) == 0);
+		//while(usbd_ep_write_packet(0x82, "\r\n", 2) == 0);
 		buf[len] = 0;
 	}
 
-	gpio_toggle(GPIOC, GPIO5);
+	//gpio_toggle(GPIOC, GPIO5);
 }
 
 static void cdcacm_set_config(u16 wValue)
@@ -230,11 +238,31 @@ static void cdcacm_set_config(u16 wValue)
 
 void cdcacm_init()
 {
+        _cdcacm_receive_callback = NULL;
+
         usbd_init(&stm32f107_usb_driver, &dev, &config, usb_strings);
         usbd_register_set_config_callback(cdcacm_set_config);
 }
 
 void cdcacm_run()
 {
-		usbd_poll();
+	usbd_poll();
+}
+
+void cdcacm_register_receive_callback(cdcacm_receive_callback callback)
+{
+        _cdcacm_receive_callback = callback;
+}
+
+
+void cdcacm_send(char *data, int size)
+{
+	int i = 0;
+
+	while ((size - (i*64)) > 64) {
+		while(usbd_ep_write_packet(0x82, (data+(i*64)), 64) == 0);
+		i++;
+	}
+
+	while(usbd_ep_write_packet(0x82, (data+(i*64)), size - (i*64)) == 0);
 }
