@@ -22,6 +22,7 @@
 #include "system.h"
 #include "led.h"
 #include "cdcacm.h"
+#include "usart.h"
 
 int led1_toggle_flag = 0;
 int led2_toggle_flag = 0;
@@ -42,9 +43,14 @@ enum p_state {
 
 enum p_state p_state;
 
+char p_u_data[100];
+int p_u_size;
+int p_u_tmp_size;
+
 void p_init(void)
 {
 	p_state = PS_IDLE;
+	p_u_size = 0;
 }
 
 void p_parse_byte(char ch)
@@ -90,12 +96,30 @@ void p_parse_byte(char ch)
 			led5_toggle_flag = 1;
 			break;
 		}
+
+		p_state = PS_IDLE;
+
 		break;
 	case PS_USART_ID:
+		switch (ch) {
+		case '2':
+			p_state = PS_USART_SIZE;
+			break;
+		default:
+			p_state = PS_IDLE;
+			break;
+		}
 		break;
 	case PS_USART_SIZE:
+		p_u_tmp_size = p_u_size = ch - '0';
+		p_state = PS_USART_DATA;
 		break;
 	case PS_USART_DATA:
+		p_u_data[--p_u_tmp_size] = ch;
+		if (p_u_tmp_size == 0) {
+			usart2_send(p_u_data, p_u_size);
+			p_state = PS_IDLE;
+		}
 		break;
 	}
 }
@@ -147,6 +171,23 @@ void led_toggle_process(void)
 	}
 }
 
+void usart2_input_callback(char *data, int size)
+{
+	char buff[140];
+	char *prefix = "usart2 -> ";
+	int i;
+
+	for (i = 0; i<10; i++) {
+		buff[i] = prefix[i];
+	}
+	for (i = 10; i<size+10; i++) {
+		buff[i] = data[i-10];
+	}
+	buff[i++] = '\r';
+	buff[i++] = '\n';
+	cdcacm_send(buff, i);
+}
+
 int main(void)
 {
 	int i;
@@ -155,8 +196,11 @@ int main(void)
 
 	system_init();
 	led_init();
+	p_init();
 	cdcacm_init();
 	cdcacm_register_receive_callback(cdcacm_input_callback);
+	usart_init();
+	usart2_register_receive_callback(usart2_input_callback);
 
 	led1_on();
 	led2_on();
