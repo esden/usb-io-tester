@@ -35,7 +35,7 @@ LDSCRIPT	= stm32f105.ld
 LDFLAGS		+= -lc -lnosys -L$(TOOLCHAIN_DIR)/lib -L$(TOOLCHAIN_DIR)/lib/stm32/f1 \
 		   -T$(LDSCRIPT) -nostartfiles -Wl,--gc-sections \
 		   -mthumb -march=armv7 -mfix-cortex-m3-ldrd -msoft-float
-OBJS		+= main.o system.o led.o cdcacm.o usart.o
+OBJS		+= main.o system.o protocol.o led.o cdcacm.o usart.o
 
 OOCD		?= openocd
 OOCD_INTERFACE	?= flossjtag

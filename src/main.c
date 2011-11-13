@@ -20,6 +20,7 @@
  */
 
 #include "system.h"
+#include "protocol.h"
 #include "led.h"
 #include "cdcacm.h"
 #include "usart.h"
@@ -31,54 +32,17 @@ int led4_toggle_flag = 0;
 int led5_toggle_flag = 0;
 int ret_flag = 0;
 
-enum p_state {
-  PS_IDLE,
-  PS_PRE1,
-  PS_PRE2,
-  PS_LED,
-  PS_USART_ID,
-  PS_USART_SIZE,
-  PS_USART_DATA
-};
-
-enum p_state p_state;
-
-char p_u_data[100];
-int p_u_size;
-int p_u_tmp_size;
-
-void p_init(void)
+void cdcacm_input_callback(char *data, int size)
 {
-	p_state = PS_IDLE;
-	p_u_size = 0;
+	int i;
+
+	for (i = 0; i < size; i++) {
+		p_parse_byte(data[i]);
+	}
 }
 
-void p_parse_byte(char ch)
+enum p_parser_state p_led_hook(char ch)
 {
-	switch (p_state) {
-	case PS_IDLE:
-		if (ch == 'u') {
-			p_state = PS_PRE1;
-		}
-		break;
-	case PS_PRE1:
-		if (ch == 'i') {
-			p_state = PS_PRE2;
-		} else {
-			p_state = PS_IDLE;
-		}
-		break;
-	case PS_PRE2:
-		switch (ch) {
-		case 'l':
-			p_state = PS_LED;
-			break;
-		case 'u':
-			p_state = PS_USART_ID;
-			break;
-		}
-		break;
-	case PS_LED:
 		switch (ch) {
 		case '1':
 			led1_toggle_flag = 1;
@@ -97,40 +61,7 @@ void p_parse_byte(char ch)
 			break;
 		}
 
-		p_state = PS_IDLE;
-
-		break;
-	case PS_USART_ID:
-		switch (ch) {
-		case '2':
-			p_state = PS_USART_SIZE;
-			break;
-		default:
-			p_state = PS_IDLE;
-			break;
-		}
-		break;
-	case PS_USART_SIZE:
-		p_u_tmp_size = p_u_size = ch - '0';
-		p_state = PS_USART_DATA;
-		break;
-	case PS_USART_DATA:
-		p_u_data[--p_u_tmp_size] = ch;
-		if (p_u_tmp_size == 0) {
-			usart2_send(p_u_data, p_u_size);
-			p_state = PS_IDLE;
-		}
-		break;
-	}
-}
-
-void cdcacm_input_callback(char *data, int size)
-{
-	int i;
-
-	for (i = 0; i < size; i++) {
-		p_parse_byte(data[i]);
-	}
+		return PPS_IDLE;
 }
 
 void led_toggle_process(void)
@@ -197,6 +128,7 @@ int main(void)
 	system_init();
 	led_init();
 	p_init();
+	p_register_hook('l', p_led_hook);
 	cdcacm_init();
 	cdcacm_register_receive_callback(cdcacm_input_callback);
 	usart_init();
