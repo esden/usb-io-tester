@@ -37,6 +37,13 @@ volatile char usart2_tx_buffer[128];
 volatile int usart2_tx_buffer_counter = 0;
 volatile int usart2_tx_buffer_index = 0;
 
+char usart3_rx_buffer[128];
+int usart3_rx_buffer_counter = 0;
+
+volatile char usart3_tx_buffer[128];
+volatile int usart3_tx_buffer_counter = 0;
+volatile int usart3_tx_buffer_index = 0;
+
 void usart_report_rx(char *prefix, int psize, char *data, int size);
 enum p_parser_state p_usart_hook(char ch);
 
@@ -47,20 +54,34 @@ void usart_init(void)
 	usart2_tx_buffer_counter = 0;
 	usart2_tx_buffer_index = 0;
 
+	usart3_rx_buffer_counter = 0;
+	usart3_tx_buffer_counter = 0;
+	usart3_tx_buffer_index = 0;
+
 	/* Enable peripheral clocks */
 	rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_USART2EN);
+	rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_USART3EN);
 	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN | RCC_APB2ENR_AFIOEN);
 
 	/* Enable the USART1 interrupt. */
 	nvic_enable_irq(NVIC_USART2_IRQ);
+	nvic_enable_irq(NVIC_USART3_IRQ);
 
 	/* Enable TX GPIO */
 	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ,
 		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_USART2_TX);
 
+	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_50_MHZ,
+		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_USART3_PR_TX);
+
 	/* Enable RX GPIO */
 	gpio_set_mode(GPIOA, GPIO_MODE_INPUT,
 		      GPIO_CNF_INPUT_FLOAT, GPIO_USART2_RX);
+
+	gpio_set_mode(GPIOC, GPIO_MODE_INPUT,
+		      GPIO_CNF_INPUT_FLOAT, GPIO_USART3_PR_RX);
+
+	AFIO_MAPR |= AFIO_MAPR_USART3_REMAP_PARTIAL_REMAP;
 
 	/* Setup UART parameters. */
 	usart_set_baudrate(USART2, 115200, rcc_ppre1_frequency);
@@ -70,11 +91,22 @@ void usart_init(void)
 	usart_set_flow_control(USART2, USART_FLOWCONTROL_NONE);
 	usart_set_mode(USART2, USART_MODE_TX_RX);
 
+	/* Setup UART parameters. */
+	usart_set_baudrate(USART3, 115200, rcc_ppre1_frequency);
+	usart_set_databits(USART3, 8);
+	usart_set_stopbits(USART3, USART_STOPBITS_1);
+	usart_set_parity(USART3, USART_PARITY_NONE);
+	usart_set_flow_control(USART3, USART_FLOWCONTROL_NONE);
+	usart_set_mode(USART3, USART_MODE_TX_RX);
+
 	/* Enable USART2 Receive interrupt. */
 	USART_CR1(USART2) |= USART_CR1_RXNEIE;
+	/* Enable USART3 Receive interrupt. */
+	USART_CR1(USART3) |= USART_CR1_RXNEIE;
 
 	/* Finally enable the USART. */
 	usart_enable(USART2);
+	usart_enable(USART3);
 
 	p_register_hook('u', p_usart_hook);
 
@@ -133,6 +165,59 @@ int usart2_send(char *data, int size)
 	return size;
 }
 
+void usart3_isr(void)
+{
+	/* Check if we were called because of RXNE. */
+	if (((USART_CR1(USART3) & USART_CR1_RXNEIE) != 0) &&
+	    ((USART_SR(USART3) & USART_SR_RXNE) != 0)) {
+
+		/* Retrieve the data from the peripheral. */
+		usart3_rx_buffer[usart3_rx_buffer_counter++] = usart_recv(USART3);
+
+		if ((usart3_rx_buffer[usart3_rx_buffer_counter-1] == '\0') ||
+		    (usart3_rx_buffer_counter == 128)) {
+			usart_report_rx("usart3 -> ", 10, usart3_rx_buffer, usart3_rx_buffer_counter);
+			usart3_rx_buffer_counter = 0;
+		}
+	}
+
+	/* Check if we were called because of TXE. */
+	if (((USART_CR1(USART3) & USART_CR1_TXEIE) != 0) &&
+	    ((USART_SR(USART3) & USART_SR_TXE) != 0)) {
+
+		/* Put data into the transmit register. */
+		usart_send(USART3, (u16)usart3_tx_buffer[usart3_tx_buffer_index++]);
+
+		if ( usart3_tx_buffer_index == usart3_tx_buffer_counter) {
+			usart3_tx_buffer_index = 0;
+			/* Disable the TXE interrupt as we don't need it anymore. */
+			USART_CR1(USART3) &= ~USART_CR1_TXEIE;
+		}
+	}
+}
+
+int usart3_send(char *data, int size)
+{
+	int i;
+
+	if (usart3_tx_buffer_index != 0) {
+		return 0;
+	}
+	if ( size > 128 ) {
+		size = 128;
+	}
+
+	for (i=0; i<size; i++) {
+		usart3_tx_buffer[i] = data[i];
+	}
+
+	usart3_tx_buffer_counter = size;
+
+	USART_CR1(USART3) |= USART_CR1_TXEIE;
+
+	return size;
+}
+
 enum p_parser_state p_usart_hook(char ch)
 {
 	enum p_usart_state {
@@ -156,6 +241,12 @@ enum p_parser_state p_usart_hook(char ch)
 		switch (ch) {
 		case '2':
 			id = 2;
+			size = 0;
+			ret = PPS_HOOK;
+			state = PUS_SIZE;
+			break;
+		case '3':
+			id = 3;
 			size = 0;
 			ret = PPS_HOOK;
 			state = PUS_SIZE;
@@ -207,6 +298,9 @@ enum p_parser_state p_usart_hook(char ch)
 			switch (id) {
 			case 2:
 				usart2_send(data, size);
+				break;
+			case 3:
+				usart3_send(data, size);
 				break;
 			}
 			ret = PPS_IDLE;
