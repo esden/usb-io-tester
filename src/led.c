@@ -1,9 +1,7 @@
 /*
- * This file was part of the libopencm3 project.
- * Was adapted to be used as part of Transition Robotics Inc. hardware testing platform.
+ * This file is part of usb io tesing firmware.
  *
- * Copyright (C) 2010 Gareth McMullin <gareth@blacksphere.co.nz>
- * Copyright (C) 2011 Piotr Esden-Tempski <piotr@transition-robotics.com>
+ * Copyright (C) 2011 Piotr Esden-Tempski <piotr@esden.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +19,19 @@
 
 #include <libopencm3/stm32/f1/rcc.h>
 #include <libopencm3/stm32/f1/gpio.h>
+
+#include "cdcacm.h"
+#include "protocol.h"
+
+#include "led.h"
+
+int led1_toggle_flag = 0;
+int led2_toggle_flag = 0;
+int led3_toggle_flag = 0;
+int led4_toggle_flag = 0;
+int led5_toggle_flag = 0;
+
+enum p_parser_state p_led_hook(char ch);
 
 void led_init()
 {
@@ -56,6 +67,16 @@ void led_init()
 	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_50_MHZ,
 			GPIO_CNF_OUTPUT_PUSHPULL, GPIO15);
 
+
+	/* Initialize internal state */
+	led1_toggle_flag = 0;
+	led2_toggle_flag = 0;
+	led3_toggle_flag = 0;
+	led4_toggle_flag = 0;
+	led5_toggle_flag = 0;
+
+	/* Register our hook to the protocol */
+	p_register_hook('l', p_led_hook);
 }
 
 void led1_on()
@@ -131,4 +152,61 @@ void led5_off()
 void led5_toggle()
 {
 	gpio_toggle(GPIOC, GPIO15);
+}
+
+enum p_parser_state p_led_hook(char ch)
+{
+		switch (ch) {
+		case '1':
+			led1_toggle_flag = 1;
+			break;
+		case '2':
+			led2_toggle_flag = 1;
+			break;
+		case '3':
+			led3_toggle_flag = 1;
+			break;
+		case '4':
+			led4_toggle_flag = 1;
+			break;
+		case '5':
+			led5_toggle_flag = 1;
+			break;
+		}
+
+		return PPS_IDLE;
+}
+
+void led_process(void)
+{
+
+	if (led1_toggle_flag == 1) {
+		led1_toggle_flag = 0;
+		led1_toggle();
+		cdcacm_send("led1 toggle\r\n", 13);
+	} else
+
+	if (led2_toggle_flag == 1) {
+		led2_toggle_flag = 0;
+		led2_toggle();
+		cdcacm_send("led2 toggle\r\n", 13);
+	} else
+
+	if (led3_toggle_flag == 1) {
+		led3_toggle_flag = 0;
+		led3_toggle();
+		cdcacm_send("led3 toggle\r\n", 13);
+	} else
+
+	if (led4_toggle_flag == 1) {
+		led4_toggle_flag = 0;
+		led4_toggle();
+		cdcacm_send("led4 toggle\r\n", 13);
+	} else
+
+	if (led5_toggle_flag == 1) {
+		led5_toggle_flag = 0;
+		led5_toggle();
+		cdcacm_send("led5 toggle\r\n", 13);
+	}
 }

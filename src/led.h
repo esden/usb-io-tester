@@ -23,6 +23,7 @@
 #define LED_H
 
 void led_init();
+void led_process();
 
 void led1_on();
 void led1_off();

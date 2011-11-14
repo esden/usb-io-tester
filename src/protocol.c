@@ -72,9 +72,11 @@ void p_parse_byte(char ch)
 		break;
 	case PPS_LED:
 
-		p_state.parser_state = p_hooks['l'](ch);
-
-		p_state.parser_state = PPS_IDLE;
+		if (p_hooks['l'] != NULL) {
+			p_state.parser_state = p_hooks['l'](ch);
+		} else {
+			p_state.parser_state = PPS_IDLE;
+		}
 
 		break;
 	case PPS_USART_ID:
