@@ -19,13 +19,16 @@
 
 #include <stdlib.h>
 
+#include "usart.h"
+
 #include "protocol.h"
 
 struct p_state {
-  enum p_parser_state parser_state;
-  char u_data[100];
-  int u_size;
-  int u_tmp_size;
+	enum p_parser_state parser_state;
+	char hook_id;
+	char u_data[100];
+	int u_size;
+	int u_tmp_size;
 };
 
 struct p_state p_state;
@@ -50,55 +53,26 @@ void p_parse_byte(char ch)
 	switch (p_state.parser_state) {
 	case PPS_IDLE:
 		if (ch == 'u') {
-			p_state.parser_state = PPS_PRE1;
+			p_state.parser_state = PPS_PRE;
 		}
 		break;
-	case PPS_PRE1:
+	case PPS_PRE:
 		if (ch == 'i') {
-			p_state.parser_state = PPS_PRE2;
+			p_state.parser_state = PPS_HOOK_ID;
 		} else {
 			p_state.parser_state = PPS_IDLE;
 		}
 		break;
-	case PPS_PRE2:
-		switch (ch) {
-		case 'l':
-			p_state.parser_state = PPS_LED;
-			break;
-		case 'u':
-			p_state.parser_state = PPS_USART_ID;
-			break;
-		}
-		break;
-	case PPS_LED:
-
-		if (p_hooks['l'] != NULL) {
-			p_state.parser_state = p_hooks['l'](ch);
+	case PPS_HOOK_ID:
+		if (p_hooks[(int)ch] != NULL) {
+			p_state.hook_id = ch;
+			p_state.parser_state = PPS_HOOK;
 		} else {
 			p_state.parser_state = PPS_IDLE;
 		}
-
 		break;
-	case PPS_USART_ID:
-		switch (ch) {
-		case '2':
-			p_state.parser_state = PPS_USART_SIZE;
-			break;
-		default:
-			p_state.parser_state = PPS_IDLE;
-			break;
-		}
-		break;
-	case PPS_USART_SIZE:
-		p_state.u_tmp_size = p_state.u_size = ch - '0';
-		p_state.parser_state = PPS_USART_DATA;
-		break;
-	case PPS_USART_DATA:
-		p_state.u_data[--p_state.u_tmp_size] = ch;
-		if (p_state.u_tmp_size == 0) {
-			usart2_send(p_state.u_data, p_state.u_size);
-			p_state.parser_state = PPS_IDLE;
-		}
+	case PPS_HOOK:
+		p_state.parser_state = p_hooks[(int)p_state.hook_id](ch);
 		break;
 	}
 }

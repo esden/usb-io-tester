@@ -22,12 +22,9 @@
 
 enum p_parser_state {
   PPS_IDLE,
-  PPS_PRE1,
-  PPS_PRE2,
-  PPS_LED,
-  PPS_USART_ID,
-  PPS_USART_SIZE,
-  PPS_USART_DATA
+  PPS_PRE,
+  PPS_HOOK_ID,
+  PPS_HOOK
 };
 
 typedef enum p_parser_state (*p_hook_f) (char ch);

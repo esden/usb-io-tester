@@ -25,21 +25,27 @@
 #include <libopencm3/stm32/usart.h>
 #include <libopencm3/stm32/nvic.h>
 
+#include "cdcacm.h"
+#include "protocol.h"
+
 #include "usart.h"
 
-volatile char usart2_rx_buffer[128];
-volatile int usart2_rx_buffer_counter = 0;
-
-usart_receive_callback _usart2_receive_callback;
+char usart2_rx_buffer[128];
+int usart2_rx_buffer_counter = 0;
 
 volatile char usart2_tx_buffer[128];
 volatile int usart2_tx_buffer_counter = 0;
+volatile int usart2_tx_buffer_index = 0;
+
+void usart_report_rx(char *prefix, int psize, char *data, int size);
+enum p_parser_state p_usart_hook(char ch);
 
 void usart_init(void)
 {
 	/* local state reset */
 	usart2_rx_buffer_counter = 0;
 	usart2_tx_buffer_counter = 0;
+	usart2_tx_buffer_index = 0;
 
 	/* Enable peripheral clocks */
 	rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_USART2EN);
@@ -70,6 +76,8 @@ void usart_init(void)
 	/* Finally enable the USART. */
 	usart_enable(USART2);
 
+	p_register_hook('u', p_usart_hook);
+
 }
 
 void usart2_isr(void)
@@ -83,9 +91,7 @@ void usart2_isr(void)
 
 		if ((usart2_rx_buffer[usart2_rx_buffer_counter-1] == '\0') ||
 		    (usart2_rx_buffer_counter == 128)) {
-			if (_usart2_receive_callback != NULL) {
-				_usart2_receive_callback(usart2_rx_buffer, usart2_rx_buffer_counter);
-			}
+			usart_report_rx("usart2 -> ", 10, usart2_rx_buffer, usart2_rx_buffer_counter);
 			usart2_rx_buffer_counter = 0;
 		}
 	}
@@ -95,32 +101,28 @@ void usart2_isr(void)
 	    ((USART_SR(USART2) & USART_SR_TXE) != 0)) {
 
 		/* Put data into the transmit register. */
-		usart_send(USART2, (u16)usart2_tx_buffer[--usart2_tx_buffer_counter]);
+		usart_send(USART2, (u16)usart2_tx_buffer[usart2_tx_buffer_index++]);
 
-		if ( usart2_tx_buffer_counter == 0) {
+		if ( usart2_tx_buffer_index == usart2_tx_buffer_counter) {
+			usart2_tx_buffer_index = 0;
 			/* Disable the TXE interrupt as we don't need it anymore. */
 			USART_CR1(USART2) &= ~USART_CR1_TXEIE;
 		}
 	}
 }
 
-void usart2_register_receive_callback(usart_receive_callback callback)
-{
-	_usart2_receive_callback = callback;
-}
-
 int usart2_send(char *data, int size)
 {
 	int i;
 
-	if (usart2_tx_buffer_counter != 0) {
+	if (usart2_tx_buffer_index != 0) {
 		return 0;
 	}
 	if ( size > 128 ) {
 		size = 128;
 	}
 
-	for (i=0; i<128; i++) {
+	for (i=0; i<size; i++) {
 		usart2_tx_buffer[i] = data[i];
 	}
 
@@ -129,4 +131,107 @@ int usart2_send(char *data, int size)
 	USART_CR1(USART2) |= USART_CR1_TXEIE;
 
 	return size;
+}
+
+enum p_parser_state p_usart_hook(char ch)
+{
+	enum p_usart_state {
+		PUS_ID,
+		PUS_SIZE,
+		PUS_DATA
+	};
+	static enum p_usart_state state = PUS_ID;
+	static int id;
+	static int size;
+	static char data[128];
+	static int data_count;
+	static char *id_error_label = "ERR: Unknown USART ID '";
+	static char *size_error_label = "ERR: String oversize '";
+	enum p_parser_state ret = PPS_IDLE;
+	int i;
+
+
+	switch (state) {
+	case PUS_ID:
+		switch (ch) {
+		case '2':
+			id = 2;
+			size = 0;
+			ret = PPS_HOOK;
+			state = PUS_SIZE;
+			break;
+		default:
+			for (i=0; i<23; i++) {
+				data[i] = id_error_label[i];
+			}
+			data[i++] = ch;
+			data[i++] = '\'';
+			data[i++] = '\r';
+			data[i++] = '\n';
+			cdcacm_send(data, i);
+			ret = PPS_IDLE;
+		}
+		break;
+	case PUS_SIZE:
+		if ((ch >= '0') &&
+		    (ch <= '9')) {
+			size *= 10;
+			size += ch - '0';
+			if (size < 128) {
+				ret = PPS_HOOK;
+			} else {
+				for (i=0; i<22; i++) {
+					data[i] = size_error_label[i];
+				}
+				data[i++] = '\'';
+				data[i++] = '\r';
+				data[i++] = '\n';
+				cdcacm_send(data, i);
+				ret = PPS_IDLE;
+				state = PUS_ID;
+			}
+		} else {
+			if (size > 0) {
+				data_count = 0;
+				ret = PPS_HOOK;
+				state = PUS_DATA;
+			} else {
+				ret = PPS_IDLE;
+				state = PUS_ID;
+			}
+		}
+		break;
+	case PUS_DATA:
+		data[data_count++] = ch;
+		if (data_count == size) {
+			switch (id) {
+			case 2:
+				usart2_send(data, size);
+				break;
+			}
+			ret = PPS_IDLE;
+			state = PUS_ID;
+		} else {
+			ret = PPS_HOOK;
+		}
+		break;
+	}
+
+	return ret;
+}
+
+void usart_report_rx(char *prefix, int psize, char *data, int size)
+{
+	char buff[140];
+	int i;
+
+	for (i = 0; i<psize; i++) {
+		buff[i] = prefix[i];
+	}
+	for (i = psize; i<size+psize; i++) {
+		buff[i] = data[i-psize];
+	}
+	buff[i++] = '\r';
+	buff[i++] = '\n';
+	cdcacm_send(buff, i);
 }

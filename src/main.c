@@ -32,23 +32,6 @@ void cdcacm_input_callback(char *data, int size)
 	}
 }
 
-void usart2_input_callback(char *data, int size)
-{
-	char buff[140];
-	char *prefix = "usart2 -> ";
-	int i;
-
-	for (i = 0; i<10; i++) {
-		buff[i] = prefix[i];
-	}
-	for (i = 10; i<size+10; i++) {
-		buff[i] = data[i-10];
-	}
-	buff[i++] = '\r';
-	buff[i++] = '\n';
-	cdcacm_send(buff, i);
-}
-
 int main(void)
 {
 	int i;
@@ -59,7 +42,6 @@ int main(void)
 	cdcacm_init();
 	cdcacm_register_receive_callback(cdcacm_input_callback);
 	usart_init();
-	usart2_register_receive_callback(usart2_input_callback);
 
 	led1_on();
 	led2_on();

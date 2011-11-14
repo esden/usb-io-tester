@@ -20,10 +20,7 @@
 #ifndef USART_H
 #define USART_H
 
-typedef void (*usart_receive_callback)(char *data, int size);
-
 void usart_init(void);
-void usart2_register_receive_callback(usart_receive_callback callback);
 int usart2_send(char *data, int size);
 
 #endif /* USART_H */
